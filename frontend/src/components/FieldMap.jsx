@@ -1,18 +1,35 @@
-import { useEffect, useRef } from 'react';
-import { Map as MapLibreMap, NavigationControl, Marker } from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import { useEffect, useRef } from "react";
+import { Map as MapLibreMap, NavigationControl, Marker } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 const RISK_COLOR = {
-  Low: '#1B6E6E',
-  Medium: '#B4741F',
-  High: '#A13A2A',
+  Low: "#1B6E6E",
+  Medium: "#B4741F",
+  High: "#A13A2A",
 };
 
-// Free vector basemap, no API key — matches planning.md's "no billing key
-// needed" reasoning for choosing MapLibre in the first place.
-const STYLE_URL = 'https://demotiles.maplibre.org/style.json';
+// Inline raster style pointing directly at OSM tiles — no external
+// style.json fetch to fail. demotiles.maplibre.org proved unreliable
+// (browser reported "There is no style added to the map").
+const STYLE = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors",
+    },
+  },
+  layers: [{ id: "osm-layer", type: "raster", source: "osm" }],
+};
 
-export default function FieldMap({ fields, selectedFieldId, riskByFieldId, onSelect }) {
+export default function FieldMap({
+  fields,
+  selectedFieldId,
+  riskByFieldId,
+  onSelect,
+}) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef({});
@@ -22,12 +39,12 @@ export default function FieldMap({ fields, selectedFieldId, riskByFieldId, onSel
 
     const map = new MapLibreMap({
       container: containerRef.current,
-      style: STYLE_URL,
+      style: STYLE,
       center: [24.95, -33.65],
       zoom: 8.3,
       attributionControl: true,
     });
-    map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+    map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     mapRef.current = map;
 
     return () => map.remove();
@@ -45,17 +62,20 @@ export default function FieldMap({ fields, selectedFieldId, riskByFieldId, onSel
       fields.forEach((field) => {
         const [lon, lat] = centroid(field.boundary);
         const risk = riskByFieldId?.[field.id];
-        const color = risk ? RISK_COLOR[risk] : '#8B8570';
+        const color = risk ? RISK_COLOR[risk] : "#8B8570";
 
-        const el = document.createElement('button');
-        el.setAttribute('aria-label', `Select ${field.name}`);
-        el.style.width = '22px';
-        el.style.height = '22px';
-        el.style.borderRadius = '50%';
-        el.style.border = field.id === selectedFieldId ? '3px solid #1E2A22' : '2px solid #FBFAF3';
+        const el = document.createElement("button");
+        el.setAttribute("aria-label", `Select ${field.name}`);
+        el.style.width = "22px";
+        el.style.height = "22px";
+        el.style.borderRadius = "50%";
+        el.style.border =
+          field.id === selectedFieldId
+            ? "3px solid #1E2A22"
+            : "2px solid #FBFAF3";
         el.style.background = color;
-        el.style.boxShadow = '0 1px 4px rgba(0,0,0,0.35)';
-        el.style.cursor = 'pointer';
+        el.style.boxShadow = "0 1px 4px rgba(0,0,0,0.35)";
+        el.style.cursor = "pointer";
         el.style.padding = 0;
         el.onclick = () => onSelect(field.id);
 
@@ -67,10 +87,17 @@ export default function FieldMap({ fields, selectedFieldId, riskByFieldId, onSel
     };
 
     if (map.isStyleLoaded()) draw();
-    else map.once('load', draw);
+    else map.once("load", draw);
   }, [fields, selectedFieldId, riskByFieldId, onSelect]);
 
-  return <div ref={containerRef} className="field-map" role="img" aria-label="Map of demo field locations" />;
+  return (
+    <div
+      ref={containerRef}
+      className="field-map"
+      role="img"
+      aria-label="Map of demo field locations"
+    />
+  );
 }
 
 function centroid(geojsonPolygon) {

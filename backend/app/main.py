@@ -4,6 +4,11 @@ Ubuntu Terra backend — FastAPI entrypoint.
 Routers are added here as they're built (fields, readings, risk, alerts).
 Keep this file thin: wiring only, no business logic.
 """
+from dotenv import load_dotenv
+load_dotenv()
+
+
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
