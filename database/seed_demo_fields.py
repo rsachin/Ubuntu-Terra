@@ -23,6 +23,11 @@ should not be presented as an exact legal field boundary.
 Run with:
     python seed_demo_fields.py
 Requires DATABASE_URL to be set (see ../.env.example).
+
+Idempotent: safe to re-run. Existing rows matching the demo field names are
+deleted before re-inserting, so running this multiple times always leaves
+exactly len(DEMO_FIELDS) rows (FK cascade also clears any dependent
+readings/risk_scores/alerts tied to the old rows).
 """
 from dotenv import load_dotenv
 load_dotenv()
@@ -90,6 +95,9 @@ def main():
     conn = psycopg2.connect(DATABASE_URL)
     try:
         with conn, conn.cursor() as cur:
+            names = [f["name"] for f in DEMO_FIELDS]
+            cur.execute("DELETE FROM fields WHERE name = ANY(%s)", (names,))
+
             rows = [
                 (f["name"], f["owner_id"], make_square_wkt(f["center_lat"], f["center_lon"]))
                 for f in DEMO_FIELDS
