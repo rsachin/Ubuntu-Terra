@@ -47,7 +47,10 @@ export default function FieldMap({
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     mapRef.current = map;
 
-    return () => map.remove();
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
   }, []);
 
   // Draw / update field markers whenever the field list or risk data changes.
