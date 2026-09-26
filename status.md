@@ -82,9 +82,9 @@ Verified by running the code in this environment, not by inspection.
 
 ### Phase 4 — WhatsApp voice-first
 - Twilio sandbox integration with graceful `simulated` fallback (`whatsapp_service.py`).
-- gTTS spoken MP3 voice notes in **English and Afrikaans** (`whatsapp_voice.py`).
+- gTTS spoken MP3 voice notes in **English and Afrikaans** (`whatsapp_voice.py`); Zulu and Sepedi text alerts are supported with English voice fallback because gTTS 2.5.4 does not include those voices.
 - Alert pipeline sending both text and voice note.
-- Inbound webhook handling `YES`/`JA`/`YEBO` confirmations and `MORE INFO` explanations.
+- Inbound webhook handling `YES`/`JA`/`YEBO`/`EE` confirmations and `MORE INFO`/`LUSISI`/`NCEDISA`/`TSHEDISA` explanations.
 - Frontend voice-note player and quick-reply tags.
 
 ### Backend enhancements (Part B)

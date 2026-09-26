@@ -455,9 +455,9 @@ async def whatsapp_webhook(request: Request, db):
     body_text = str(form.get("Body") or "").strip().lower()
     media_url = form.get("MediaUrl0") or ""
 
-    if any(k in body_text for k in ("yes", "ja", "yebo", "ok", "confirm", "seen")) or media_url:
-        reply_msg = "Siyabonga! / Dankie! We have confirmed your alert receipt. We will continue monitoring your field."
-    elif any(k in body_text for k in ("more", "info", "help", "explain", "verduidelik", "why")):
+    if any(k in body_text for k in ("yes", "ja", "yebo", "ee", "ok", "confirm", "seen")) or media_url:
+        reply_msg = "Siyabonga! / Dankie! / Re a leboga! We have confirmed your alert receipt. We will continue monitoring your field."
+    elif any(k in body_text for k in ("more", "info", "help", "explain", "verduidelik", "why", "lusisi", "ncedisa", "tshedisa", "ka lebaka")):
         with db.cursor() as cur:
             cur.execute(
                 """
@@ -481,7 +481,7 @@ async def whatsapp_webhook(request: Request, db):
             )
     else:
         reply_msg = (
-            "Ubuntu Terra Assistant: Reply YES (or JA / YEBO) to confirm alert receipt, "
+            "Ubuntu Terra Assistant: Reply YES (or JA / YEBO / EE) to confirm alert receipt, "
             "or reply MORE INFO for a detailed explanation of your field's stress condition."
         )
 

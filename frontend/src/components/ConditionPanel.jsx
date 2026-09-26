@@ -4,6 +4,20 @@ import { DISCLAIMER_TEXT } from "./DisclaimerModal";
 import { api } from "../api/client";
 import { WaterIcon, HeatIcon, PlantIcon, SpeakerIcon, ChevronDownIcon } from "./Icons";
 
+const TTS_LANG = {
+  en: "en-US",
+  af: "af-ZA",
+  zu: "zu-ZA",
+  nso: "nso-ZA",
+};
+
+const LANGUAGE_LABELS = {
+  en: "English",
+  af: "Afrikaans",
+  zu: "isiZulu",
+  nso: "Sepedi",
+};
+
 export default function ConditionPanel({ risk, readings = [], fieldId, fieldName = "Citrus Block", onOpenDisclaimer }) {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [voiceLanguage, setVoiceLanguage] = useState("en");
@@ -31,7 +45,7 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
       const disclaimer = DISCLAIMER_TEXT[voiceLanguage] || DISCLAIMER_TEXT.en;
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(disclaimer);
-      utterance.lang = voiceLanguage === "en" ? "en-US" : "af-ZA";
+      utterance.lang = TTS_LANG[voiceLanguage] || TTS_LANG.en;
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = () => setIsSpeaking(false);
@@ -101,7 +115,7 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
 
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(speechText);
-    utterance.lang = voiceLanguage === "en" ? "en-US" : "af-ZA";
+    utterance.lang = TTS_LANG[voiceLanguage] || TTS_LANG.en;
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
@@ -265,7 +279,7 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
       </div>
 
       {/* Language & Voice Query Sub-actions */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
         <button
           type="button"
           className="field-filter-btn"
@@ -274,13 +288,18 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
         >
           {isListening ? "🎙️ Listening…" : "🎙️ Voice Ask"}
         </button>
-        <button
-          type="button"
-          className="field-filter-btn"
-          onClick={() => setVoiceLanguage((prev) => (prev === "en" ? "af" : "en"))}
-        >
-          🌐 {voiceLanguage === "en" ? "Afrikaans" : "English"}
-        </button>
+
+        {["en", "af", "zu", "nso"].map((lang) => (
+          <button
+            key={lang}
+            type="button"
+            className={`field-filter-btn${voiceLanguage === lang ? " is-active" : ""}`}
+            onClick={() => setVoiceLanguage(lang)}
+          >
+            🌐 {LANGUAGE_LABELS[lang]}
+          </button>
+        ))}
+
         <button
           type="button"
           className="field-filter-btn"
