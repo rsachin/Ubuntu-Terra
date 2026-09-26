@@ -120,7 +120,7 @@ cd ubuntu-terra
 
 1. **Select a Field:**
    - Navigate around the interactive map.
-   - Click on any field polygon (e.g., _Patensie Citrus Block 4_ or _Hankey Vegetable Field_).
+   - Click on any field polygon (e.g., _Demo Field — Gamtoos Valley Citrus Block_).
 
 2. **Review Field Health:**
    - Look at the sidebar panel on the right.

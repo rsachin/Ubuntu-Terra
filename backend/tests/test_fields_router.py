@@ -309,9 +309,9 @@ def test_list_fields_includes_seeded_demo_fields(owner):
     response = client.get("/api/fields", headers=owner["headers"])
     assert response.status_code == 200
     names = [f["name"] for f in response.json()]
-    assert "Patensie Citrus Block — Gamtoos Valley" in names
-    assert "Hankey Vegetable Field — Gamtoos Valley" in names
-    assert "Kirkwood Citrus Block — Sundays River Valley" in names
+    assert "Demo Field — Gamtoos Valley Citrus Block" in names
+    assert "Demo Field — Gamtoos Valley Vegetables" in names
+    assert "Demo Field — Sundays River Valley Citrus Block" in names
 
 
 def test_get_field_detail(test_field, owner_headers):

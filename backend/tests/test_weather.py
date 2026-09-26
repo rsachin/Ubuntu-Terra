@@ -9,7 +9,7 @@ import pytest
 
 from app.services import weather
 
-# Real Patensie Citrus Block coordinates
+# Gamtoos Valley demo field coordinates
 LAT, LON = -33.7550, 24.8080
 
 

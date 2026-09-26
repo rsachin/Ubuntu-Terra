@@ -90,11 +90,11 @@ ubuntu-terra/
 
 **Region:** Gamtoos River Valley (Patensie, Hankey) and Sundays River Valley (Kirkwood), Eastern Cape.
 
-| Field                  | Location                                         | Water source      | Role in demo                  |
-| ---------------------- | ------------------------------------------------ | ----------------- | ----------------------------- |
-| Patensie Citrus Block  | Patensie, Gamtoos Valley (-33.755, 24.808)       | Kouga Dam         | Citrus — quota-restricted     |
-| Hankey Vegetable Field | Hankey, Gamtoos Valley (-33.828, 24.875)         | Kouga Dam         | Vegetables — quota-restricted |
-| Kirkwood Citrus Block  | Kirkwood, Sundays River Valley (-33.405, 25.450) | Gariep Dam scheme | Citrus — comparatively secure |
+| Field                                   | Location                                         | Water source      | Role in demo                  |
+| --------------------------------------- | ------------------------------------------------ | ----------------- | ----------------------------- |
+| Demo Field — Gamtoos Valley Citrus Block  | Patensie, Gamtoos Valley (-33.755, 24.808)       | Kouga Dam         | Citrus — quota-restricted     |
+| Demo Field — Gamtoos Valley Vegetables    | Hankey, Gamtoos Valley (-33.828, 24.875)         | Kouga Dam         | Vegetables — quota-restricted |
+| Demo Field — Sundays River Valley Citrus Block | Kirkwood, Sundays River Valley (-33.405, 25.450) | Gariep Dam scheme | Citrus — comparatively secure |
 
 ## API Endpoints (Operational)
 

@@ -367,7 +367,7 @@ export default function FieldMap({
 
   return (
     <div className="field-map-wrapper">
-      {/* Search Bar Pill Container overlaying the top of the map */}
+      {/* Search Bar Pill Container overlaying the top-left of the map */}
       <form onSubmit={handleSearch} className="map-pill-search">
         <span className="map-pill-search__icon">
           <SearchIcon size={18} />
@@ -398,6 +398,19 @@ export default function FieldMap({
           </button>
         </div>
       </form>
+
+      {/* Floating Action Button for drawing a new field boundary */}
+      {!isDrawing && (
+        <button
+          type="button"
+          className="map-draw-fab"
+          onClick={handleStartDraw}
+          title="Draw New Field Boundary"
+          aria-label="Draw New Field Boundary"
+        >
+          ✏️ Draw New Field Boundary
+        </button>
+      )}
 
       {/* Floating Action Button (FAB) for Camera */}
       <button
@@ -446,13 +459,7 @@ export default function FieldMap({
             </form>
           )}
         </div>
-      ) : (
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button onClick={handleStartDraw} className="map-draw-btn">
-            ✏️ Draw New Field Boundary
-          </button>
-        </div>
-      )}
+      ) : null}
 
       {drawError && <div className="app__banner">{drawError}</div>}
 

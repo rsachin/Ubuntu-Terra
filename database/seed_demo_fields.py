@@ -58,13 +58,15 @@ def make_square_wkt(center_lat: float, center_lon: float, half_side_deg: float =
     )
 
 
-# Real, named, publicly-documented farming locations. Coordinates are town-
-# centre reference points for each location (confirmed via public sources);
-# each field polygon is offset slightly from the town centre toward the
-# surrounding farmland/irrigation scheme, not placed directly on the town.
+# Demo / example field boundaries for hackathon showcases. Coordinates are
+# town-centre reference points for well-known farming locations in the Eastern
+# Cape (confirmed via public sources); each polygon is a small representative
+# square offset toward the surrounding farmland. These are NOT the surveyed
+# boundaries of any specific private farm — they exist so judges can explore
+# the app without first drawing their own field.
 DEMO_FIELDS = [
     {
-        "name": "Patensie Citrus Block — Gamtoos Valley",
+        "name": "Demo Field — Gamtoos Valley Citrus Block",
         "owner_id": "demo",
         # Patensie, Eastern Cape: -33.75889, 24.81472. Kouga Dam-fed, citrus/
         # tobacco/vegetables, recurring agricultural water quota restrictions.
@@ -72,7 +74,7 @@ DEMO_FIELDS = [
         "center_lon": 24.8080,
     },
     {
-        "name": "Hankey Vegetable Field — Gamtoos Valley",
+        "name": "Demo Field — Gamtoos Valley Vegetables",
         "owner_id": "demo",
         # Hankey, Eastern Cape: -33.83139, 24.88083. Also on the Kouga Dam
         # scheme; Gamtoos Valley vegetable production (potatoes, cauliflower,
@@ -81,7 +83,7 @@ DEMO_FIELDS = [
         "center_lon": 24.8750,
     },
     {
-        "name": "Kirkwood Citrus Block — Sundays River Valley",
+        "name": "Demo Field — Sundays River Valley Citrus Block",
         "owner_id": "demo",
         # Kirkwood, Eastern Cape: -33.40028, 25.44250. Sundays River Valley,
         # fed by the Gariep Dam transfer scheme — comparatively more secure
@@ -115,10 +117,10 @@ def main():
             )
         print(f"Seeded {len(DEMO_FIELDS)} demo fields.")
         try:
-            seed_demo_ndvi_trigger("Patensie Citrus Block — Gamtoos Valley")
-            print("Seeded demo NDVI trigger for Patensie field.")
+            seed_demo_ndvi_trigger("Demo Field — Gamtoos Valley Citrus Block")
+            print("Seeded demo NDVI trigger for Gamtoos Valley demo field.")
         except ValueError:
-            print("Demo NDVI trigger not applied because the Patensie field was not found.")
+            print("Demo NDVI trigger not applied because the Gamtoos Valley demo field was not found.")
     finally:
         conn.close()
 
