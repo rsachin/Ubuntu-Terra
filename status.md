@@ -190,9 +190,7 @@ cd frontend && npm install && npm run dev
 1. **Add the real `TWILIO_AUTH_TOKEN`** to `.env` and re-verify the webhook
    end-to-end. The WhatsApp leg is the most impressive feature and it is
    currently dead without a token.
-2. **Commit Phase 2.** The integration tests, migration 006, TTL caching, and
-   alert delivery audit are currently uncommitted.
-3. **Add a provisional badge** in the UI when validation stats are below 20
+2. **Add a provisional badge** in the UI when validation stats are below 20
    responses so the demo does not look like the tool has no validation.
 
 **To make it reproducible for anyone else**
