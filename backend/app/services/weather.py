@@ -61,6 +61,44 @@ def get_recent_weather(
             client.close()
 
 
+def get_forecast_rainfall(
+    latitude: float,
+    longitude: float,
+    client: httpx.Client | None = None,
+) -> float | None:
+    """
+    Return the 7-day predicted rainfall sum for the given coordinates from Open-Meteo.
+    """
+    owns_client = client is None
+    client = client or httpx.Client(timeout=DEFAULT_TIMEOUT_SECONDS)
+    try:
+        response = client.get(
+            OPEN_METEO_URL,
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "daily": "precipitation_sum",
+                "forecast_days": 7,
+                "past_days": 0,
+                "timezone": "auto",
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+        daily = payload.get("daily", {})
+        precipitation = daily.get("precipitation_sum", [])
+        
+        valid_precip = [p for p in precipitation if p is not None]
+        if not valid_precip:
+            return None
+        return sum(valid_precip)
+    except Exception:
+        return None
+    finally:
+        if owns_client:
+            client.close()
+
+
 def _fetch_open_meteo(
     latitude: float, longitude: float, days: int, client: httpx.Client
 ) -> list[DailyWeather]:

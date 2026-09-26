@@ -37,6 +37,8 @@ import os
 import psycopg2
 from psycopg2.extras import execute_values
 
+from demo_ndvi_fixture import seed_demo_ndvi_trigger
+
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/ubuntu_terra"
 )
@@ -99,19 +101,24 @@ def main():
             cur.execute("DELETE FROM fields WHERE name = ANY(%s)", (names,))
 
             rows = [
-                (f["name"], f["owner_id"], make_square_wkt(f["center_lat"], f["center_lon"]))
+                (f["name"], f["owner_id"], make_square_wkt(f["center_lat"], f["center_lon"]), True)
                 for f in DEMO_FIELDS
             ]
             execute_values(
                 cur,
                 """
-                INSERT INTO fields (name, owner_id, boundary)
+                INSERT INTO fields (name, owner_id, boundary, is_demo_field)
                 VALUES %s
                 """,
                 rows,
-                template="(%s, %s, ST_GeomFromText(%s, 4326))",
+                template="(%s, %s, ST_GeomFromText(%s, 4326), %s)",
             )
         print(f"Seeded {len(DEMO_FIELDS)} demo fields.")
+        try:
+            seed_demo_ndvi_trigger("Patensie Citrus Block — Gamtoos Valley")
+            print("Seeded demo NDVI trigger for Patensie field.")
+        except ValueError:
+            print("Demo NDVI trigger not applied because the Patensie field was not found.")
     finally:
         conn.close()
 
