@@ -1,0 +1,75 @@
+# Ubuntu Terra — full stack for local development and demo on Windows/Linux/macOS
+#
+# Usage:
+#   docker compose up --build
+#
+# Services:
+#   - postgres: PostgreSQL 15 + PostGIS extension
+#   - backend:  FastAPI API server
+#   - frontend: Vite React dev server (also builds for production preview)
+#
+# Notes for Windows users:
+#   - Requires Docker Desktop with WSL2 backend enabled.
+#   - The first build downloads images and installs dependencies; subsequent starts are fast.
+#   - Postgres data is persisted in a named volume so the database survives container restarts.
+
+version: "3.9"
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: ubuntu-terra-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ubuntu_terra
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ubuntu_terra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ubuntu-terra-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ubuntu_terra
+      ALLOWED_ORIGINS: "http://localhost:5173"
+      # Twilio credentials are optional; leave empty for simulated WhatsApp mode
+      TWILIO_AUTH_TOKEN: ""
+      TWILIO_ACCOUNT_SID: ""
+      TWILIO_WHATSAPP_NUMBER: "whatsapp:+14155238886"
+      RECIPIENT_WHATSAPP_NUMBER: ""
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist uploaded photos / voice notes across container restarts
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ubuntu-terra-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: "http://localhost:8000"
+    ports:
+      - "5173:5173"
+
+volumes:
+  postgres_data:
+  backend_uploads:
