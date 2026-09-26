@@ -33,7 +33,7 @@ def demo_ndvi_rows(base_date: dt.date | None = None):
     ]
 
 
-def seed_demo_ndvi_trigger(field_name: str = "Patensie Citrus Block — Gamtoos Valley") -> int:
+def seed_demo_ndvi_trigger(field_name: str = "Demo Field — Gamtoos Valley Citrus Block") -> int:
     conn = psycopg2.connect(DATABASE_URL)
     try:
         with conn, conn.cursor() as cur:

@@ -207,7 +207,7 @@ if __name__ == "__main__":
     #   python -m app.services.satellite
     import sys
 
-    # Patensie Citrus Block — small square around -33.7550, 24.8080
+    # Gamtoos Valley demo field — small square around -33.7550, 24.8080
     field_geojson = {
         "type": "Polygon",
         "coordinates": [[
