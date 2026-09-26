@@ -14,5 +14,9 @@ node_modules/
 dist/
 .vite/
 
+# Runtime uploads (farmer photos + generated WhatsApp MP3s).
+# The directory is recreated automatically on backend startup.
+backend/uploads/
+
 # OS
 .DS_Store

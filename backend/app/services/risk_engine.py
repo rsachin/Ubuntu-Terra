@@ -38,9 +38,8 @@ class RiskAssessment:
 # this many percentage points below the average of the earlier readings.
 NDVI_DECLINE_THRESHOLD_PCT = 8.0
 
-# Rainfall is "below average" if the most recent period's total is at least
-# this many percent below the average of the earlier period(s).
-RAINFALL_DEFICIT_THRESHOLD_PCT = 15.0
+# Rainfall is considered low if the 7-day forecast predicts less than this amount.
+LOW_FORECAST_RAINFALL_MM = 10.0
 
 # Temperature is "anomalously high" if the most recent reading is at least
 # this many degrees C above the average of the earlier readings.
@@ -53,11 +52,11 @@ HIGH_RISK_NDVI_DECLINE_PCT = 15.0
 
 def assess_field_risk(
     ndvi_readings: list[float],
-    rainfall_readings_mm: list[float],
     temp_readings_c: list[float],
+    forecast_rainfall_mm: float | None = None,
 ) -> RiskAssessment:
     """
-    Combine NDVI trend + rainfall deficit + temperature anomaly into a
+    Combine NDVI trend + low forecast rainfall + temperature anomaly into a
     score and a plain-language reason.
 
     Each `*_readings` list is ordered oldest -> newest. The last reading in
@@ -66,12 +65,11 @@ def assess_field_risk(
     that signal simply can't contribute to a flag (never assumed to be bad).
     """
     ndvi_decline_pct = _percent_decline(ndvi_readings)
-    rainfall_deficit_pct = _percent_decline(rainfall_readings_mm)
     temp_anomaly_c = _anomaly(temp_readings_c)
 
     ndvi_declining = ndvi_decline_pct is not None and ndvi_decline_pct >= NDVI_DECLINE_THRESHOLD_PCT
     rainfall_deficit = (
-        rainfall_deficit_pct is not None and rainfall_deficit_pct >= RAINFALL_DEFICIT_THRESHOLD_PCT
+        forecast_rainfall_mm is not None and forecast_rainfall_mm < LOW_FORECAST_RAINFALL_MM
     )
     temp_anomaly = temp_anomaly_c is not None and temp_anomaly_c >= TEMP_ANOMALY_THRESHOLD_C
 
@@ -79,7 +77,7 @@ def assess_field_risk(
     if ndvi_declining:
         reasons.append(f"NDVI down {ndvi_decline_pct:.0f}% over the last {len(ndvi_readings)} readings")
     if rainfall_deficit:
-        reasons.append(f"Rainfall {rainfall_deficit_pct:.0f}% below the recent average")
+        reasons.append(f"Forecast predicts low rainfall (~{forecast_rainfall_mm:.0f}mm) over the next 7 days")
     if temp_anomaly:
         reasons.append(f"Temperature {temp_anomaly_c:.1f}\u00b0C above the recent average")
 
