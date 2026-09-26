@@ -61,6 +61,7 @@ def send_whatsapp_alert_and_voice(
                 "to": target_number,
                 "text": message_text,
                 "audio_url": audio_url,
+                "error": None,
             }
         except Exception as e:
             logger.warning(f"Twilio WhatsApp dispatch error: {e}")
@@ -71,5 +72,8 @@ def send_whatsapp_alert_and_voice(
         "to": target_number,
         "text": message_text,
         "audio_url": audio_url,
+        "sid": None,
+        "voice_sid": None,
+        "error": None,
         "note": "WhatsApp sandbox delivery recorded (configure TWILIO_ACCOUNT_SID & TWILIO_AUTH_TOKEN for live SMS/WA)",
     }

@@ -6,11 +6,12 @@
 
 ## Current Phase
 
-Feature work (Phases 1–4) and the security hardening pass are **complete**. The project is functionally demo-ready when run from source with seeded demo fields. What remains is **reproducibility and deployment polish** — see [What is missing](#what-is-missing).
+**Phase 1 (Stabilize & Run) and Phase 2 (Core Data Layer) are complete.**
+Phase 3 (Core API Hardening) is next.
 
 ## Current Objective
 
-Make the project reproducible for someone who has never seen it: one documented install path, a green test suite, and an optional containerised/CI build.
+Tighten and test the FastAPI endpoints: fix the shadowed route, strengthen input validation, add upload size limits, and ensure the full backend test suite stays green.
 
 ---
 
@@ -30,6 +31,9 @@ Verified by running the code in this environment, not by inspection.
 | Read a seeded demo field | 200 (readings 15 points, risk `Medium`, demo data labelled) |
 | Cross-owner read of another owner's field | 403 (readings, risk, alerts, photos, feedback) |
 | WhatsApp alert | Alert row + MP3 voice note generated; `simulated` send without Twilio creds |
+| WhatsApp alert delivery status persisted | `alerts.status` = `simulated`, `provider_message_id` stored |
+| External API TTL caching | Second `/readings` call within 6 hours does not re-hit weather/NDVI APIs |
+| Demo NDVI fallback scoping | Synthetic NDVI only seeded for `is_demo_field = true` fields |
 | WhatsApp "yes" reply with a real Twilio signature | 200 + TwiML confirmation, on both webhook paths |
 | Unsigned / garbage / wrong-token / wrong-URL signature | 403, message not processed |
 | CORS preflight from `http://localhost:5173` | 200, `X-Owner-Token` in `allow-headers` |
@@ -38,14 +42,10 @@ Verified by running the code in this environment, not by inspection.
 
 ### Test suite
 
-- **62 tests collected — 52 passing, 10 failing.**
-- All 10 failures are in `backend/tests/test_risk_engine.py` and are **stale
-  tests, not broken code**: they call
-  `assess_field_risk(rainfall_readings_mm=...)` from before the Part B refactor
-  to forward-looking `forecast_rainfall_mm`. The engine implements the newer,
-  intended design. The fix is to update the tests, **not** to revert
-  `risk_engine.py`.
-- No previously-passing test regressed during the security pass.
+- **66 tests collected — 66 passing, 0 failing** (verified inside Docker with a seeded PostGIS database).
+- The 10 previously stale `test_risk_engine.py` tests were updated to the `forecast_rainfall_mm` signature in Phase 1.
+- Phase 2 added `test_data_pipeline.py` covering TTL caching, alert delivery persistence, and demo-NDVI scoping.
+- No previously-passing test regressed during Phase 2.
 
 ### Live data sources (confirmed reachable / keyless)
 
@@ -91,6 +91,12 @@ Verified by running the code in this environment, not by inspection.
 - Open-Meteo 7-day forecast integrated into the risk engine, replacing heuristics.
 - Synthetic demo NDVI restricted to flagged demo fields, used only as a fallback, labelled in the UI.
 
+### Phase 2 implementation — Core Data Layer
+- Migration `006_alerts_delivery_status_and_reading_ttl.sql` adds `reading_source_status` (TTL cache metadata) and delivery-status columns to `alerts`.
+- TTL caching for Open-Meteo, NASA POWER, Sentinel Hub, and the 7-day rainfall forecast (default 6 hours, configurable via `READING_CACHE_TTL_SECONDS`).
+- `get_alerts()` persists WhatsApp delivery result (`status`, `provider_message_id`, `provider_error`).
+- Integration tests verify the full pipeline, TTL cache behavior, and that synthetic demo NDVI is scoped to demo fields only.
+
 ### Security hardening pass
 - CORS restricted to an explicit `ALLOWED_ORIGINS` allow-list (no wildcard), with whitespace-stripping so a malformed value cannot silently break the browser.
 - Twilio webhook signature verification inside `fields.whatsapp_webhook`, so both `/whatsapp/webhook` and `/api/whatsapp/webhook` share one check. Fails closed with 500 if the token is unset.
@@ -102,68 +108,43 @@ Verified by running the code in this environment, not by inspection.
 
 Ordered by what blocks someone else from running or judging the project.
 
-### 1. Blocking — red test suite (10 failures)
-`test_risk_engine.py` targets a pre-Part-B signature. The suite should be green
-before any demo. Fix: update the 10 tests to pass `forecast_rainfall_mm`.
-
-### 2. Blocking for a live WhatsApp demo — `TWILIO_AUTH_TOKEN` is empty
+### 1. Blocking for a live WhatsApp demo — `TWILIO_AUTH_TOKEN` is empty
 The real `.env` has `TWILIO_AUTH_TOKEN=` and `TWILIO_ACCOUNT_SID=` blank.
 Consequences: inbound webhooks fail closed with **500** (no message processed),
 and outbound alerts are recorded as `simulated` rather than sent. Only the
 project owner can paste the sandbox Auth Token. The sandbox webhook URL must
 also byte-match the public HTTPS URL.
 
-### 3. Blocking for reproducibility — no single migration runner
-`database/apply_migration.py` hardcodes `004_is_demo_field.sql`,
-`apply_migration_005.py` hardcodes `005`, and **001–003 have no runner at all**.
-A fresh clone has no reliable way to build the schema. The README documents a
-`for` loop over `database/migrations/0*.sql` as the workaround, but a single
-ordered runner should exist.
+### 2. Blocking for reproducibility — CI/CD
+`docker-compose.yml` and Dockerfiles exist and the full stack runs with
+`docker compose up --build`. A GitHub Actions workflow is still needed to run
+`pytest` and `npm run build` automatically on every push/PR.
 
-> **Fixed in this pass:** `004_is_demo_field.sql` was the one non-idempotent
-> migration (a bare `ADD COLUMN`, no `IF NOT EXISTS`), so re-running the loop
-> against an already-migrated database aborted with
-> `column "is_demo_field" of relation "fields" already exists`. It now uses
-> `ADD COLUMN IF NOT EXISTS`; all five migrations re-run cleanly (verified).
+### 3. Completed in Phase 1 — single migration runner
+`database/migrate.py` now applies 001→006 in order and supports `--seed` / `--reset`.
+Ad-hoc `apply_migration*.py` scripts deleted.
 
-### 4. Missing — Docker / CI-CD / deployment config
-There is **no** `Dockerfile`, `docker-compose.yml`, `render.yaml`, `Procfile`,
-or any CI workflow. Consequences:
-- The app can only be run from source; no reproducible runtime image.
-- `frontend/src/api/client.js` and the CORS allow-list both assume a deployed
-  frontend URL that has no infrastructure behind it.
-- No automated test run on commit or PR.
+### 4. Completed in Phase 1 — Docker / local deployment config
+`docker-compose.yml`, `backend/Dockerfile`, `frontend/Dockerfile`, and `.dockerignore`
+are present. The stack starts with one command.
 
-### 5. Missing — build/release scripts
-`frontend/package.json` has `dev`, `build`, `preview`, and `lint`, which is
-adequate for the frontend. There is **no** backend entrypoint script, no
-combined "run everything" script, and no seed-and-migrate command. A
-`Makefile` or a small `scripts/dev.ps1` would remove the multi-terminal,
-multi-command setup from the README.
+### 5. Completed in Phase 1 — build/release scripts
+`scripts/dev.ps1` provides a one-command Windows dev launcher. A cross-platform
+`Makefile` is still pending.
 
-### 6. Housekeeping — `.gitignore` does not exclude uploads
-`backend/uploads/` is untracked-but-not-ignored and currently holds **65 files**
-(farmer photos and generated MP3s). It needs an ignore rule, otherwise demo
-artefacts get committed.
+### 6. Completed in Phase 2 — `.gitignore` excludes uploads
+`backend/uploads/` and `.postgres/` are now ignored.
 
-### 7. Housekeeping — dependency pins fail on Python 3.14
-`pydantic==2.9.2` and `psycopg2-binary==2.9.9` have no Python 3.14 wheels and
-need a Rust / PostgreSQL toolchain to build from source (this was hit while
-verifying the security pass). The project targets Python 3.11–3.13. The pins
-should be bumped to versions with modern wheels, or the supported version range
-declared explicitly.
+### 7. Completed in Phase 1 — dependency pins / Python version range
+`backend/pyproject.toml` now declares `requires-python = ">=3.10,<3.14"`.
+Python 3.14 is explicitly out of scope.
 
-### 8. Known-but-unfixed — `owner_tokens` migration is not committed
-`database/migrations/005_owner_tokens.sql` and its runner are still untracked,
-along with all of Phase 2–4. **Nothing from this project has been committed** —
-the working tree holds 20+ untracked files.
-
-### 9. Out of scope for now — aggregate endpoint unauthenticated
+### 8. Out of scope for now — aggregate endpoint unauthenticated
 `GET /api/validation-stats` and `/validation-stats` require no token because
 they return aggregate counts rather than one owner's data. Defensible, but it
 should be a conscious decision rather than an omission.
 
-### 10. Minor pre-existing — unreachable route
+### 9. Minor pre-existing — unreachable route
 `GET /api/fields/validation-stats` is shadowed by `GET /api/fields/{field_id}`
 because of declaration order. The top-level `/validation-stats` and
 `/api/validation-stats` aliases work correctly, so nothing depends on the
@@ -185,19 +166,16 @@ cp .env.example .env          # then set DATABASE_URL
 createdb ubuntu_terra
 psql -d ubuntu_terra -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
-# 3. Migrations, in order (all idempotent)
-for f in database/migrations/0*.sql; do psql "$DATABASE_URL" -f "$f"; done
+# 3. Migrations + demo seed (one command)
+cd database && python migrate.py --seed && cd ..
 
-# 4. Seed the 3 demo fields
-cd database && python seed_demo_fields.py && cd ..
-
-# 5. Backend  -> http://localhost:8000  (docs at /docs)
+# 4. Backend  -> http://localhost:8000  (docs at /docs)
 cd backend
 python -m venv ../venv
 ../venv/Scripts/pip install -r requirements.txt
 ../venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
 
-# 6. Frontend -> http://localhost:5173   (second terminal)
+# 5. Frontend -> http://localhost:5173   (second terminal)
 cd frontend && npm install && npm run dev
 ```
 
@@ -209,44 +187,38 @@ cd frontend && npm install && npm run dev
 
 **Before any demo or judging session**
 
-1. **Fix the 10 failing tests.** A red suite is the first thing a judge sees
-   and it undermines claims that the risk engine is verified. ~15 minutes.
-2. **Add the real `TWILIO_AUTH_TOKEN`** to `.env` and re-verify the webhook
+1. **Add the real `TWILIO_AUTH_TOKEN`** to `.env` and re-verify the webhook
    end-to-end. The WhatsApp leg is the most impressive feature and it is
    currently dead without a token.
-3. **Commit everything.** 20+ untracked files including all of Phase 2–4, the
-   owner-token migration, and the new tests. Uncommitted work is invisible work.
-4. **Add `backend/uploads/` to `.gitignore`** before committing.
+2. **Commit Phase 2.** The integration tests, migration 006, TTL caching, and
+   alert delivery audit are currently uncommitted.
+3. **Add a provisional badge** in the UI when validation stats are below 20
+   responses so the demo does not look like the tool has no validation.
 
 **To make it reproducible for anyone else**
 
-5. **Write one ordered migration runner** (`database/migrate.py`) that applies
-   001→005 and optionally seeds. Delete the two ad-hoc scripts.
-6. **Write the `README.md`** — done in this pass.
-7. **Add a `Dockerfile`** (backend) and a `docker-compose.yml` wiring
-   `postgres+postgis` → backend → frontend. This is the single highest-leverage
-   item for "a judge can run it".
-8. **Add a minimal GitHub Actions workflow**: `pytest` on push, `npm run build`
-   on push. Catches the red-suite class of problem automatically.
+4. **Add a minimal GitHub Actions workflow**: run `pytest` and `npm run build`
+   on every push/PR. This is the highest-leverage follow-up after Phase 2.
+5. **Add a cross-platform dev launcher** (`Makefile` or npm script) so
+   macOS/Linux users have the same one-command experience as `scripts/dev.ps1`.
 
 **Security, if this ever handles real farm data**
 
-9. Replace the owner token with real authentication: password login, token
+6. Replace the owner token with real authentication: password login, token
    expiry and rotation, httpOnly cookies instead of `localStorage`, and rate
    limiting on `POST /api/owners/register` (owner_id enumeration is currently
    trivial).
-10. Add an admin review queue for `pending_review` photos instead of local disk.
-11. Serve map tiles / data sources through a cache or CDN if usage grows; the
-    NDVI and weather calls are currently made per request.
+7. Add an admin review queue for `pending_review` photos instead of local disk.
+8. Serve map tiles / data sources through a cache or CDN if usage grows.
 
 **Product**
 
-12. **Field auto-detection from satellite imagery** instead of hand-drawing
-    boundaries — the single biggest fidelity gap versus a real product
-    (OneSoil does this at scale).
-13. Persist the owner token with an expiry so a shared demo machine does not
+9. **Field auto-detection from satellite imagery** instead of hand-drawing
+   boundaries — the single biggest fidelity gap versus a real product
+   (OneSoil does this at scale).
+10. Persist the owner token with an expiry so a shared demo machine does not
     leak the previous demo farmer's access.
-14. The validation-stats threshold (20 responses) is never reachable in a
+11. The validation-stats threshold (20 responses) is never reachable in a
     demo; consider a clearly-labelled provisional mode for judging.
 
 ---
@@ -261,13 +233,15 @@ Recent additions:
 | 2026-09-26 | CORS restricted to an explicit `ALLOWED_ORIGINS` allow-list; deployed frontend URL added by env var, not code |
 | 2026-09-26 | Twilio webhook signatures verified inside `fields.whatsapp_webhook` so both aliases share one check; fails closed with 500 if the token is unset |
 | 2026-09-26 | Owner identity is a per-owner opaque token (`X-Owner-Token`), deliberately short of real auth; demo fields stay readable by any valid token |
+| 2026-09-27 | External weather/NDVI readings cached per source in `reading_source_status` with a 6-hour TTL (`READING_CACHE_TTL_SECONDS`) instead of re-fetching on every request |
+| 2026-09-27 | WhatsApp alert delivery result persisted in `alerts` (`status`, `provider_message_id`, `provider_error`) for audit and simulated/live path debugging |
 
 ---
 
 ## Last Updated
 
-2026-09-26 — Security hardening pass complete. Added verified-working-state
-table, feature inventory, prioritised "what is missing" list (test suite,
-Twilio token, migration runner, Docker/CI-CD, build scripts), run instructions,
-and a prioritised recommendation list. `README.md` created. Also made
-`004_is_demo_field.sql` idempotent so the documented migration loop is re-runnable.
+2026-09-27 — Phase 2 Core Data Layer complete. 66 tests passing (0 failures).
+Added `reading_source_status` TTL cache, migration 006, alert delivery audit
+columns, and integration tests. Updated docs (`README.md`, `planning.md`,
+`status.md`, `TODO.md`, `TECHNICAL_DEBT.md`). Remaining blockers: live Twilio
+token for real WhatsApp send, CI/CD workflow, and Phase 3 API hardening.

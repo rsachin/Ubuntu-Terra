@@ -18,5 +18,8 @@ dist/
 # The directory is recreated automatically on backend startup.
 backend/uploads/
 
+# Dockerised PostgreSQL data directory (if used locally).
+.postgres/
+
 # OS
 .DS_Store

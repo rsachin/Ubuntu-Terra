@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -41,18 +42,29 @@ def _list_migration_files() -> list[Path]:
 
 
 def _run_sql_file(database_url: str, sql_path: Path) -> None:
-    """Execute a single SQL file via psql so we can use psql-specific syntax if needed."""
-    result = subprocess.run(
-        ["psql", database_url, "-f", str(sql_path), "-v", "ON_ERROR_STOP=1"],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        print(f"Migration failed: {sql_path}")
-        print(result.stdout)
-        print(result.stderr, file=sys.stderr)
-        raise RuntimeError(f"Migration {sql_path.name} failed")
-    print(f"Applied {sql_path.name}")
+    """Execute a single SQL file via psycopg2 (no external psql dependency)."""
+    sql_text = sql_path.read_text(encoding="utf-8")
+
+    # Remove line comments and block comments so they don't break statement splitting.
+    sql_text = re.sub(r"--.*?\n", "\n", sql_text)
+    sql_text = re.sub(r"/\*.*?\*/", "", sql_text, flags=re.DOTALL)
+
+    conn = psycopg2.connect(database_url)
+    conn.autocommit = True
+    try:
+        with conn.cursor() as cur:
+            for statement in sql_text.split(";"):
+                statement = statement.strip()
+                if not statement:
+                    continue
+                cur.execute(statement)
+        print(f"Applied {sql_path.name}")
+    except Exception as e:
+        print(f"Migration failed: {sql_path}", file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
+        raise RuntimeError(f"Migration {sql_path.name} failed") from e
+    finally:
+        conn.close()
 
 
 def _database_exists(database_url: str, db_name: str) -> bool:

@@ -373,17 +373,25 @@ def get_alerts(field_id: int, db=Depends(get_db), token_owner_id: str = Depends(
     with db.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO alerts (field_id, message, channel)
-            VALUES (%s, %s, %s)
+            INSERT INTO alerts (field_id, message, channel, status, provider_message_id, provider_error)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (field_id, message, "whatsapp"),
+            (
+                field_id,
+                message,
+                "whatsapp",
+                wa_result.get("status"),
+                wa_result.get("sid") or wa_result.get("voice_sid"),
+                wa_result.get("error"),
+            ),
         )
     db.commit()
 
     with db.cursor() as cur:
         cur.execute(
             """
-            SELECT message, sent_at, channel FROM alerts
+            SELECT message, sent_at, channel, status, provider_message_id, provider_error
+            FROM alerts
             WHERE field_id = %s ORDER BY sent_at DESC LIMIT %s
             """,
             (field_id, ALERT_HISTORY_LIMIT),
@@ -395,8 +403,11 @@ def get_alerts(field_id: int, db=Depends(get_db), token_owner_id: str = Depends(
             "message": r["message"],
             "created_at": r["sent_at"].isoformat(),
             "channel": r["channel"],
+            "status": r["status"],
+            "provider_message_id": r["provider_message_id"],
+            "provider_error": r["provider_error"],
             "audio_url": audio_url,
-            "whatsapp_status": wa_result.get("status"),
+            "whatsapp_status": r["status"],
         }
         for r in rows
     ]
@@ -721,26 +732,104 @@ def _get_accessible_field_or_403(field_id: int, db, token_owner_id: str) -> dict
     return field
 
 
+READING_CACHE_TTL_SECONDS = int(os.environ.get("READING_CACHE_TTL_SECONDS", "21600"))  # 6 hours default
+
+
+def _is_source_fresh(field_id: int, source: str, db, ttl_seconds: int = READING_CACHE_TTL_SECONDS) -> bool:
+    """Return True if we have a reading_source_status row newer than the TTL."""
+    with db.cursor() as cur:
+        cur.execute(
+            """
+            SELECT last_refreshed_at FROM reading_source_status
+            WHERE field_id = %s AND source = %s
+            """,
+            (field_id, source),
+        )
+        row = cur.fetchone()
+    if not row:
+        return False
+    age_seconds = (dt.datetime.now(dt.timezone.utc) - row["last_refreshed_at"]).total_seconds()
+    return age_seconds < ttl_seconds
+
+
+def _touch_source_refresh(field_id: int, source: str, db, cached_value=None) -> None:
+    """Upsert the last-refreshed timestamp for a (field_id, source) pair.
+
+    For scalar sources such as the rainfall forecast, store the fetched value
+    in cached_value_json so it can be reused within the TTL window.
+    """
+    import json
+
+    value_json = json.dumps(cached_value) if cached_value is not None else None
+    with db.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO reading_source_status (field_id, source, last_refreshed_at, cached_value_json)
+            VALUES (%s, %s, now(), %s::jsonb)
+            ON CONFLICT (field_id, source) DO UPDATE SET
+                last_refreshed_at = EXCLUDED.last_refreshed_at,
+                cached_value_json = COALESCE(EXCLUDED.cached_value_json, reading_source_status.cached_value_json)
+            """,
+            (field_id, source, value_json),
+        )
+    db.commit()
+
+
+def _get_cached_scalar(field_id: int, source: str, db, ttl_seconds: int = READING_CACHE_TTL_SECONDS):
+    """Return a cached scalar value if it exists and is still fresh, else None."""
+    if not _is_source_fresh(field_id, source, db, ttl_seconds):
+        return None
+    with db.cursor() as cur:
+        cur.execute(
+            """
+            SELECT cached_value_json FROM reading_source_status
+            WHERE field_id = %s AND source = %s
+            """,
+            (field_id, source),
+        )
+        row = cur.fetchone()
+    if not row or row["cached_value_json"] is None:
+        return None
+
+    # psycopg2 already deserialises JSONB into native Python objects.
+    value = row["cached_value_json"]
+    if isinstance(value, str):
+        import json
+        return json.loads(value)
+    return value
+
+
 def _sync_readings(field: dict, db, days: int = READING_LOOKBACK_DAYS) -> None:
     end = dt.date.today()
     start = end - dt.timedelta(days=days)
 
+    # Only hit external weather APIs if our cached data is stale or absent.
     weather_readings = []
-    try:
-        weather_readings = weather_service.get_recent_weather(field["lat"], field["lon"], days=days)
-    except Exception:
-        pass
+    if not _is_source_fresh(field["id"], "open_meteo", db):
+        try:
+            weather_readings = weather_service.get_recent_weather(field["lat"], field["lon"], days=days)
+            if weather_readings:
+                # Record the actual source that returned data (open_meteo or nasa_power fallback).
+                _touch_source_refresh(field["id"], weather_readings[0].source, db)
+        except Exception:
+            pass
 
+    # Only hit Sentinel Hub if our cached NDVI is stale or absent.
     ndvi_readings = []
-    try:
-        ndvi_readings = satellite_service.get_ndvi_time_series(
-            field["boundary_geojson"], start, end
-        )
-    except Exception:
-        pass
+    if not _is_source_fresh(field["id"], "sentinel_hub", db):
+        try:
+            ndvi_readings = satellite_service.get_ndvi_time_series(
+                field["boundary_geojson"], start, end
+            )
+            if ndvi_readings:
+                _touch_source_refresh(field["id"], "sentinel_hub", db)
+        except Exception:
+            pass
 
-    if field.get("is_demo_field") and not ndvi_readings:
+    # Demo NDVI fallback is restricted to demo fields and only seeded when stale.
+    if field.get("is_demo_field") and not ndvi_readings and not _is_source_fresh(field["id"], "demo_trigger", db):
         _seed_demo_ndvi_trigger(field, db)
+        _touch_source_refresh(field["id"], "demo_trigger", db)
 
     if not weather_readings and not ndvi_readings:
         return
@@ -830,10 +919,15 @@ def _compute_and_cache_risk(field_id: int, db):
     temp = [r["temp_c"] for r in merged]
 
     field = _get_field_or_404(field_id, db)
-    try:
-        forecast_rainfall_mm = weather_service.get_forecast_rainfall(field["lat"], field["lon"])
-    except Exception:
-        forecast_rainfall_mm = None
+
+    # Cache the 7-day rainfall forecast with the same TTL as readings.
+    forecast_rainfall_mm = _get_cached_scalar(field_id, "forecast", db)
+    if forecast_rainfall_mm is None:
+        try:
+            forecast_rainfall_mm = weather_service.get_forecast_rainfall(field["lat"], field["lon"])
+            _touch_source_refresh(field_id, "forecast", db, cached_value=forecast_rainfall_mm)
+        except Exception:
+            pass
 
     assessment = assess_field_risk(ndvi, temp, forecast_rainfall_mm=forecast_rainfall_mm)
 

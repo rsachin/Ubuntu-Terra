@@ -12,8 +12,10 @@ RUN apt-get update \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code and database migration runner
+# Copy application code, tests, and database migration runner
 COPY backend/app ./app
+COPY backend/tests ./tests
+COPY backend/pyproject.toml ./pyproject.toml
 COPY database ./database
 
 # Create uploads directory for photos and generated voice notes

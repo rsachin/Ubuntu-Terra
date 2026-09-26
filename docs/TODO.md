@@ -15,11 +15,11 @@ This is the living task list discovered during the onboarding review. Items are 
 
 - [x] Create a single ordered migration runner (`database/migrate.py`) that applies `001→005` and optionally seeds demo fields.
 - [x] Delete the ad-hoc `database/apply_migration.py` and `database/apply_migration_005.py` once the runner exists.
-- [ ] Persist WhatsApp delivery result in the `alerts` table (status, Twilio SID, error).
+- [x] Persist WhatsApp delivery result in the `alerts` table (status, Twilio SID, error).
 - [ ] Add file-size and image-dimension limits to `POST /api/fields/{id}/photos`.
 - [ ] Add a provisional/early-stage badge in the UI when validation stats are below 20 responses.
 - [ ] Add a "last refreshed" indicator for readings in the condition panel so farmers know how current the data is.
-- [ ] Cache external API results with a TTL (e.g. only refresh weather/NDVI if older than 6 hours) instead of re-fetching on every request.
+- [x] Cache external API results with a TTL (e.g. only refresh weather/NDVI if older than 6 hours) instead of re-fetching on every request.
 
 ## DevEx / Reproducibility
 
@@ -45,9 +45,9 @@ This is the living task list discovered during the onboarding review. Items are 
 
 - [ ] Add frontend unit/component tests (Vitest + React Testing Library) for `RiskBadge`, `TrendChart`, and the main app render.
 - [ ] Add a frontend e2e smoke test (e.g. Playwright) for: map loads, at least one demo field polygon is visible, condition panel shows a risk score.
-- [ ] Add an integration test for the full demo data flow: create field → seed readings → compute risk → generate alert.
-- [ ] Add a test that verifies demo NDVI is only used for `is_demo_field = true` fields.
-- [ ] Add a test that verifies non-demo fields do not get synthetic data when Sentinel Hub fails.
+- [x] Add an integration test for the full demo data flow: create field → seed readings → compute risk → generate alert.
+- [x] Add a test that verifies demo NDVI is only used for `is_demo_field = true` fields.
+- [x] Add a test that verifies non-demo fields do not get synthetic data when Sentinel Hub fails.
 
 ## Documentation
 

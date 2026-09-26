@@ -126,6 +126,17 @@ psql -d ubuntu_terra -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 
 ### 3. Apply migrations (run in order)
 
+**Option A — the migration runner (recommended):**
+
+```bash
+cd database
+python migrate.py          # applies 001→006
+python migrate.py --seed   # applies migrations + seeds 3 demo fields
+cd ..
+```
+
+**Option B — the documented `psql` loop:**
+
 ```bash
 for f in database/migrations/0*.sql; do
   echo "Applying $f"
@@ -134,10 +145,13 @@ done
 ```
 
 This creates `fields`, `readings`, `risk_scores`, `alerts`, `photo_diagnoses`,
-`farmer_feedback`, adds `fields.is_demo_field`, and creates `owner_tokens`.
+`farmer_feedback`, `owner_tokens`, and `reading_source_status` (for TTL cache
+metadata). Migrations now run through `006`.
 All migrations are idempotent (`IF NOT EXISTS`), so re-running is safe.
 
 ### 4. Seed the demo fields (optional but recommended)
+
+If you used `migrate.py --seed` above, this step is already done.
 
 ```bash
 cd database
@@ -190,8 +204,7 @@ npm run preview    # serve the production build locally
 npm run lint       # oxlint
 ```
 
-There is no Docker image or deployment config in the repo yet — see
-[Known limitations](#known-limitations).
+A ready-to-use `docker-compose.yml` is provided — see [Quick start](#quick-start).
 
 ---
 
@@ -316,9 +329,8 @@ uses) so it verifies real SQL and PostGIS geometry handling. The external
 weather and satellite calls are monkeypatched, so tests need no network and no
 API credentials. Seed the demo fields first — several tests assert on them.
 
-Current state: **52 passing, 10 failing**. The 10 failures are all in
-`test_risk_engine.py` and are stale tests, not broken code — see
-[Known limitations](#known-limitations).
+Current state: **66 passing, 0 failing** (includes Phase 2 integration tests for
+TTL caching, alert delivery persistence, and demo-NDVI scoping).
 
 ---
 
@@ -340,7 +352,7 @@ backend/
   tests/                 pytest suite
   uploads/               Local photo + audio storage (gitignored)
 database/
-  migrations/            001..005, applied in order, idempotent
+  migrations/            001..006, applied in order, idempotent
   seed_demo_fields.py    Seeds the 3 demo fields
 frontend/
   src/api/client.js      API client + owner-token store
@@ -351,18 +363,9 @@ docs: planning.md        Scope, architecture, decisions
 
 ## Known limitations
 
-- **10 tests in `test_risk_engine.py` fail.** The tests still call
-  `assess_field_risk(rainfall_readings_mm=...)` from before the Part B
-  refactor to forward-looking `forecast_rainfall_mm`. The engine is correct;
-  the tests need updating to the new signature.
 - **Python 3.14 is not supported by the pinned dependencies.**
   `pydantic==2.9.2` and `psycopg2-binary==2.9.9` have no 3.14 wheels and
   require a Rust/PostgreSQL toolchain to build from source. Use Python 3.11–3.13.
-- **There is no single migration runner.** `database/apply_migration.py` and
-  `apply_migration_005.py` are ad-hoc, hardcode a single file each, and
-  migrations 001–003 have no runner. Use the `for` loop in
-  [Quick start](#quick-start).
-- **No Docker, CI/CD, or deployment config.** The app is run from source.
 - **Owner access is a per-owner opaque token, not real authentication.** No
   passwords, sessions, expiry, or rotation; the token is stored in
   `localStorage`; `POST /api/owners/register` has no rate limiting, so
@@ -372,3 +375,10 @@ docs: planning.md        Scope, architecture, decisions
   satellite auto-detection.
 - **Photo storage is local disk** with a `pending_review` status and no admin
   review queue.
+- **No CI/CD yet.** `docker-compose.yml` works locally; a GitHub Actions
+  workflow is still pending (Phase 6).
+- **No upload size limits.** `POST /api/fields/{id}/photos` accepts any image
+  size; production needs a cap plus resize/virus scanning.
+- **`GET /api/fields/validation-stats` is shadowed** by `GET /api/fields/{field_id}`
+  because of route declaration order. The top-level `/validation-stats` and
+  `/api/validation-stats` aliases work correctly.
