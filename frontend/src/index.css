@@ -255,7 +255,8 @@ a {
   position: absolute;
   top: 14px;
   left: 14px;
-  right: 14px;
+  right: auto;
+  width: min(420px, max(140px, calc(100% - 230px)));
   z-index: 10;
   display: flex;
   align-items: center;
@@ -354,6 +355,41 @@ a {
   background: var(--accent-primary-hover);
   transform: scale(1.1);
   box-shadow: 0 0 24px rgba(46, 213, 115, 0.7);
+}
+
+/* --- Draw New Field Boundary FAB --- */
+
+.map-draw-fab {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  padding: 8px 16px;
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-pill);
+  background: rgba(46, 213, 115, 0.2);
+  color: var(--accent-primary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s ease;
+}
+
+.map-draw-fab:hover {
+  background: var(--accent-primary);
+  color: #0a140c;
+}
+
+@media (max-width: 480px) {
+  .map-pill-search {
+    width: min(280px, max(120px, calc(100% - 150px)));
+  }
+
+  .map-draw-fab {
+    padding: 7px 10px;
+    font-size: 0.78rem;
+  }
 }
 
 /* --- Custom Map Marker Pins --- */
@@ -1098,16 +1134,6 @@ a {
   color: #0a140c;
   font-weight: 700;
   font-size: 0.88rem;
-}
-
-.map-draw-btn {
-  padding: 8px 16px;
-  border: 1px solid var(--accent-primary);
-  border-radius: var(--radius-pill);
-  background: rgba(46, 213, 115, 0.2);
-  color: var(--accent-primary);
-  font-weight: 600;
-  font-size: 0.85rem;
 }
 
 .disclaimer-info-btn {

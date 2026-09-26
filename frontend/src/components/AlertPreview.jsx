@@ -9,9 +9,7 @@ export default function AlertPreview({ alerts }) {
 
   const latest = alerts?.[0];
   const message = latest
-    ? language === "en"
-      ? latest.message
-      : translateToAfrikaans(latest.message)
+    ? translateAlertMessage(latest.message, language)
     : null;
 
   const replayDisclaimerSpeech = () => {
@@ -19,7 +17,7 @@ export default function AlertPreview({ alerts }) {
     const text = DISCLAIMER_TEXT[language] || DISCLAIMER_TEXT.en;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language === "en" ? "en-US" : "af-ZA";
+    utterance.lang = TTS_LANG[language] || TTS_LANG.en;
     window.speechSynthesis.speak(utterance);
   };
 
@@ -62,6 +60,20 @@ export default function AlertPreview({ alerts }) {
             onClick={() => setLanguage("af")}
           >
             AF
+          </button>
+          <button
+            type="button"
+            className={`field-filter-btn${language === "zu" ? " is-active" : ""}`}
+            onClick={() => setLanguage("zu")}
+          >
+            ZU
+          </button>
+          <button
+            type="button"
+            className={`field-filter-btn${language === "nso" ? " is-active" : ""}`}
+            onClick={() => setLanguage("nso")}
+          >
+            NSO
           </button>
         </div>
       </div>
@@ -201,10 +213,10 @@ export default function AlertPreview({ alerts }) {
             </span>
             <div className="alert-reply-tags" style={{ marginTop: "6px" }}>
               <span className="reply-tag" style={{ color: "var(--accent-primary)" }}>
-                Reply "YES" / "JA" (Confirm)
+                Reply "YES" / "JA" / "YEBO" / "EE" (Confirm)
               </span>
               <span className="reply-tag" style={{ color: "var(--accent-low)" }}>
-                Reply "MORE INFO" (Explain)
+                Reply "MORE INFO" / "LUSISI" (Explain)
               </span>
             </div>
           </div>
@@ -226,18 +238,61 @@ export default function AlertPreview({ alerts }) {
   );
 }
 
+const TTS_LANG = {
+  en: "en-US",
+  af: "af-ZA",
+  zu: "zu-ZA",
+  nso: "nso-ZA",
+};
+
+function translateAlertMessage(message, language) {
+  if (language === "en") return message;
+  if (language === "af") return translateToAfrikaans(message);
+  if (language === "zu") return translateToZulu(message);
+  if (language === "nso") return translateToSepedi(message);
+  return message;
+}
+
 function translateToAfrikaans(message) {
   return message
-    .replace(/low risk/i, "lae risiko")
-    .replace(/medium risk/i, "matige risiko")
-    .replace(/high risk/i, "hoë risiko")
-    .replace(/no action needed/i, "geen aksie nodig")
+    .replace(/low risk/gi, "lae risiko")
+    .replace(/medium risk/gi, "matige risiko")
+    .replace(/high risk/gi, "hoë risiko")
+    .replace(/no action needed/gi, "geen aksie nodig")
     .replace(
-      /check the irrigation system/i,
+      /check the irrigation system/gi,
       "kontroleer die besproeiingstelsel",
     )
-    .replace(/check for heat stress/i, "kontroleer hitte-stres")
-    .replace(/conditions normal/i, "toestande is normaal");
+    .replace(/check for heat stress/gi, "kontroleer hitte-stres")
+    .replace(/conditions normal/gi, "toestande is normaal");
+}
+
+function translateToZulu(message) {
+  return message
+    .replace(/low risk/gi, "ingozi encane")
+    .replace(/medium risk/gi, "ingozi engxenyana")
+    .replace(/high risk/gi, "ingozi enkulu")
+    .replace(/no action needed/gi, "akukenziwa lutho")
+    .replace(
+      /check the irrigation system/gi,
+      "hlola uhlelo lokunisela",
+    )
+    .replace(/check for heat stress/gi, "hlola ukushiswa kwentuthuko")
+    .replace(/conditions normal/gi, "izimo zijwayelekile");
+}
+
+function translateToSepedi(message) {
+  return message
+    .replace(/low risk/gi, "kotsi ya tlase")
+    .replace(/medium risk/gi, "kotsi ya magareng")
+    .replace(/high risk/gi, "kotsi yeo e lego godimo")
+    .replace(/no action needed/gi, "ga go nyakege tirelo")
+    .replace(
+      /check the irrigation system/gi,
+      "hlola tshepedišo ya go nokela",
+    )
+    .replace(/check for heat stress/gi, "hlola kgatelelo ya go mona")
+    .replace(/conditions normal/gi, "maemo a a tlwaelegilego");
 }
 
 function formatTime(iso) {

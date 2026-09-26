@@ -183,7 +183,7 @@ if __name__ == "__main__":
     #   python -m app.services.weather
     import sys
 
-    # Patensie Citrus Block, Gamtoos Valley
+    # Gamtoos Valley demo field coordinates (Patensie area)
     lat, lon = -33.7550, 24.8080
     try:
         readings = get_recent_weather(lat, lon, days=7)

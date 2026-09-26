@@ -4,11 +4,26 @@ import { DISCLAIMER_TEXT } from "./DisclaimerModal";
 import { api } from "../api/client";
 import { WaterIcon, HeatIcon, PlantIcon, SpeakerIcon, ChevronDownIcon } from "./Icons";
 
+const TTS_LANG = {
+  en: "en-US",
+  af: "af-ZA",
+  zu: "zu-ZA",
+  nso: "nso-ZA",
+};
+
+const LANGUAGE_LABELS = {
+  en: "English",
+  af: "Afrikaans",
+  zu: "isiZulu",
+  nso: "Sepedi",
+};
+
 export default function ConditionPanel({ risk, readings = [], fieldId, fieldName = "Citrus Block", onOpenDisclaimer }) {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [voiceLanguage, setVoiceLanguage] = useState("en");
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const [riskFeedbackSaved, setRiskFeedbackSaved] = useState(false);
   const [photoFeedbackSaved, setPhotoFeedbackSaved] = useState(false);
@@ -21,24 +36,6 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
         "SpeechSynthesisUtterance" in window,
     );
   }, []);
-
-  // Read aloud disclaimer on first view of field results
-  useEffect(() => {
-    if (!fieldId || !risk || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const sessionKey = `disclaimer_read_${fieldId}`;
-    if (!sessionStorage.getItem(sessionKey)) {
-      sessionStorage.setItem(sessionKey, "true");
-      const disclaimer = DISCLAIMER_TEXT[voiceLanguage] || DISCLAIMER_TEXT.en;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(disclaimer);
-      utterance.lang = voiceLanguage === "en" ? "en-US" : "af-ZA";
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    }
-  }, [fieldId, risk, voiceLanguage]);
-
 
   // Compute dynamic signal status & color coding from risk data
   const signalStates = useMemo(() => {
@@ -86,10 +83,9 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
     );
   }
 
-  const speakRisk = () => {
-    if (!voiceEnabled || typeof window === "undefined") return;
+  const buildAdvisoryText = () => {
     const disclaimer = DISCLAIMER_TEXT[voiceLanguage] || DISCLAIMER_TEXT.en;
-    const speechText = [
+    return [
       `Field condition for ${fieldName}.`,
       `Risk level ${risk.score}.`,
       ...risk.reasons,
@@ -98,13 +94,50 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
     ]
       .filter(Boolean)
       .join(" ");
+  };
+
+  const stopSpeaking = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    setIsPaused(false);
+  };
+
+  const togglePauseSpeaking = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+    } else if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+    }
+  };
+
+  const speakRisk = () => {
+    if (!voiceEnabled || typeof window === "undefined") return;
+
+    // If already speaking, treat the primary button as a stop control.
+    if (isSpeaking) {
+      stopSpeaking();
+      return;
+    }
 
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(speechText);
-    utterance.lang = voiceLanguage === "en" ? "en-US" : "af-ZA";
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    const utterance = new SpeechSynthesisUtterance(buildAdvisoryText());
+    utterance.lang = TTS_LANG[voiceLanguage] || TTS_LANG.en;
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsPaused(false);
+    };
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
     window.speechSynthesis.speak(utterance);
   };
 
@@ -191,7 +224,6 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
           </span>
           <p className="app__field-subtext">
             Satellite &amp; weather risk analysis updated live
-            {risk.is_demo_data && <span style={{ marginLeft: "8px", color: "var(--accent-high)", fontWeight: "bold" }}>[Demo data]</span>}
           </p>
         </div>
         <RiskBadge score={risk.score} />
@@ -238,7 +270,7 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
           className="primary-action-btn"
           onClick={speakRisk}
         >
-          <span>What should I do?</span>
+          <span>{isSpeaking ? "⏹ Stop advisory" : "What should I do?"}</span>
         </button>
 
         {/* Wide Rounded Dark Pill "Hear this" Audio Button with Waveform Graphic */}
@@ -250,7 +282,7 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
         >
           <div className="waveform-pill-btn__left">
             <SpeakerIcon size={18} color="var(--accent-low)" />
-            <span>{isSpeaking ? "Speaking advisory..." : "Hear this advisory"}</span>
+            <span>{isSpeaking ? "Stop advisory" : "Hear this advisory"}</span>
           </div>
           <div className={`waveform-graphic${isSpeaking ? " is-playing" : ""}`}>
             <span className="waveform-bar waveform-bar--cyan" style={{ height: "12px" }} />
@@ -265,7 +297,7 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
       </div>
 
       {/* Language & Voice Query Sub-actions */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
         <button
           type="button"
           className="field-filter-btn"
@@ -274,13 +306,28 @@ export default function ConditionPanel({ risk, readings = [], fieldId, fieldName
         >
           {isListening ? "🎙️ Listening…" : "🎙️ Voice Ask"}
         </button>
-        <button
-          type="button"
-          className="field-filter-btn"
-          onClick={() => setVoiceLanguage((prev) => (prev === "en" ? "af" : "en"))}
-        >
-          🌐 {voiceLanguage === "en" ? "Afrikaans" : "English"}
-        </button>
+
+        {["en", "af", "zu", "nso"].map((lang) => (
+          <button
+            key={lang}
+            type="button"
+            className={`field-filter-btn${voiceLanguage === lang ? " is-active" : ""}`}
+            onClick={() => setVoiceLanguage(lang)}
+          >
+            🌐 {LANGUAGE_LABELS[lang]}
+          </button>
+        ))}
+
+        {isSpeaking && (
+          <button
+            type="button"
+            className="field-filter-btn"
+            onClick={togglePauseSpeaking}
+          >
+            {isPaused ? "▶️ Resume" : "⏸️ Pause"}
+          </button>
+        )}
+
         <button
           type="button"
           className="field-filter-btn"

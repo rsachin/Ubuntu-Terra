@@ -245,9 +245,9 @@ Open http://localhost:5173 in your browser and verify each item:
 - [ ] The page title is "Ubuntu Terra" and the map container loads without a red error banner.
 - [ ] The map shows Esri satellite imagery (you may need to zoom/pan).
 - [ ] The field list on the left shows **3 demo fields**:
-  - Patensie Citrus Block — Gamtoos Valley
-  - Hankey Vegetable Field — Gamtoos Valley
-  - Kirkwood Citrus Block — Sundays River Valley
+  - Demo Field — Gamtoos Valley Citrus Block
+  - Demo Field — Gamtoos Valley Vegetables
+  - Demo Field — Sundays River Valley Citrus Block
 - [ ] Clicking a field opens the condition panel on the right.
 - [ ] The condition panel shows a risk level badge (**Low**, **Medium**, or **High**).
 - [ ] For the Patensie demo field, the panel shows `[Demo data]` next to the update text.
