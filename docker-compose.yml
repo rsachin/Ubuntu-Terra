@@ -13,8 +13,6 @@
 #   - The first build downloads images and installs dependencies; subsequent starts are fast.
 #   - Postgres data is persisted in a named volume so the database survives container restarts.
 
-version: "3.9"
-
 services:
   postgres:
     image: postgis/postgis:15-3.4

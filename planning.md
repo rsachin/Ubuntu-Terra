@@ -143,6 +143,8 @@ short-lived tokens instead of `localStorage`.
 | 2026-09-26 | CORS restricted to an explicit `ALLOWED_ORIGINS` allow-list (no wildcard); the deployed frontend URL is added by env var, not a code change.   |
 | 2026-09-26 | Twilio webhook signatures verified inside `fields.whatsapp_webhook` so both webhook aliases share one check; fails closed with 500 if the auth token is unset. |
 | 2026-09-26 | Owner identity is a per-owner opaque token (`X-Owner-Token`), scoped deliberately short of real auth: no passwords, sessions, expiry or rotation yet. Demo fields stay readable by any valid token. |
+| 2026-09-27 | External weather/NDVI readings cached per source in `reading_source_status` with a 6-hour TTL (`READING_CACHE_TTL_SECONDS`) instead of re-fetching on every request |
+| 2026-09-27 | WhatsApp alert delivery result persisted in `alerts` (`status`, `provider_message_id`, `provider_error`) for audit and simulated/live path debugging |
 
 ## Product Positioning Notes
 
