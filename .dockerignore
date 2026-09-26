@@ -1,0 +1,31 @@
+# Python / backend
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/uploads/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Git / OS
+.git/
+.github/
+.gitignore
+.DS_Store
+
+# Docs and editor files
+*.md
+.vscode/
+.idea/
+
+# Local PostgreSQL data dir used for native dev
+.postgres/
+postgres.log
